@@ -1,5 +1,4 @@
-// app.js
-require('dotenv').config(); // Load variables from .env file
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -25,37 +24,32 @@ const fetchPrices = async () => {
             const response = await fetch(url);
             const data = await response.json();
             const quote = data['Global Quote'];
-            if (quote && quote['05. price']) {
-                return { symbol: quote['01. symbol'], price: parseFloat(quote['05. price']).toFixed(2) };
-            }
+            if (quote && quote['05. price']) { return { symbol: quote['01. symbol'], price: parseFloat(quote['05. price']).toFixed(2) }; }
         } catch (error) { console.error(`Error fetching ${symbol}:`, error); }
         return null;
     });
-
     const results = await Promise.all(pricePromises);
     results.forEach(res => { if (res) lastPrices[res.symbol] = res.price; });
-
-    // Broadcast the new prices to ALL connected clients
     io.emit('price_update', lastPrices);
 };
 
 // --- Socket.IO Event Handling ---
 io.on('connection', (socket) => {
-    console.log('A user connected');
-    // When a new user connects, send them the current symbols and prices immediately
     socket.emit('initial_data', { symbols: trackedSymbols, prices: lastPrices });
-
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
+    socket.on('add_stock', (newSymbol) => {
+        const symbol = newSymbol.toUpperCase();
+        if (!trackedSymbols.includes(symbol)) {
+            trackedSymbols.push(symbol);
+            io.emit('symbols_update', trackedSymbols);
+            fetchPrices();
+        } else {
+            socket.emit('action_feedback', `The symbol ${symbol} is already being tracked.`);
+        }
     });
+    socket.on('disconnect', () => { });
 });
 
-// Fetch prices every 60 seconds
 setInterval(fetchPrices, 60000);
-// Also fetch prices once on server start
 fetchPrices();
-
 const PORT = 3000;
-server.listen(PORT, () => {
-    console.log(`Server is listening on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server is listening on http://localhost:${PORT}`));
