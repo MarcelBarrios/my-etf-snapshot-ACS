@@ -23,10 +23,48 @@ let lastPrices = {};
 let priceAlerts = []; // { symbol, price, email, triggered }
 
 // --- Core Functions ---
+// Function to send the price alert email
 const sendAlertEmail = (alert) => {
-    const mailOptions = { from: process.env.EMAIL_FROM, to: alert.email, subject: `Price Alert for ${alert.symbol}!`, text: `The price for ${alert.symbol} has reached your target of $${alert.price}. The current price is $${lastPrices[alert.symbol]}.` };
+    console.log(`Sending price alert for ${alert.symbol} to ${alert.email}`);
+
+    const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: alert.email,
+        subject: `Price Alert for ${alert.symbol}!`,
+        // The plain text version for email clients that don't support HTML
+        text: `This is an automated alert from ETF Snapshot. The price for ${alert.symbol} has reached your target of $${alert.price}. The current price is $${lastPrices[alert.symbol]}.`,
+        // styled HTML version of the email
+        html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 20px auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #0d6efd; color: white; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0; font-size: 24px;">Price Alert Triggered!</h1>
+                </div>
+                <div style="padding: 20px;">
+                    <p>Hello,</p>
+                    <p>This is an automated alert from your Real-Time ETF Ticker.</p>
+                    <p>The price for <strong>${alert.symbol}</strong> has reached your target.</p>
+                    <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px 0;">Your Target Price:</td>
+                            <td style="padding: 10px 0; text-align: right; font-weight: bold;">$${parseFloat(alert.price).toFixed(2)}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px 0;">Current Price:</td>
+                            <td style="padding: 10px 0; text-align: right; font-weight: bold; font-size: 20px; color: #198754;">$${lastPrices[alert.symbol]}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="background-color: #f8f9fa; color: #6c757d; padding: 15px; text-align: center; font-size: 12px;">
+                    <p style="margin: 0;">Real-Time Financial Updates</p>
+                </div>
+            </div>
+        `
+    };
+
     emailTransporter.sendMail(mailOptions, (error, info) => {
-        if (error) { return console.error('Error sending email:', error); }
+        if (error) {
+            return console.error('Error sending email:', error);
+        }
         console.log('Email sent:', info.response);
     });
 };
