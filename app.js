@@ -1,23 +1,47 @@
+// app.js - Commit 5 (Final)
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const nodemailer = require('nodemailer');
+const mailgunTransport = require('nodemailer-mailgun-transport');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// --- API and Email Setup ---
 const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
+const mailgunAuth = { auth: { api_key: process.env.MAILGUN_API_KEY, domain: process.env.MAILGUN_DOMAIN } };
+const emailTransporter = nodemailer.createTransport(mailgunTransport(mailgunAuth));
 
 app.use(express.static('static'));
 
 // --- In-Memory Data Storage ---
 let trackedSymbols = ['VT', 'SPY', 'QQQ'];
 let lastPrices = {};
+let priceAlerts = []; // { symbol, price, email, triggered }
 
-// Function to fetch stock prices from the API
+// --- Core Functions ---
+const sendAlertEmail = (alert) => {
+    const mailOptions = { from: process.env.EMAIL_FROM, to: alert.email, subject: `Price Alert for ${alert.symbol}!`, text: `The price for ${alert.symbol} has reached your target of $${alert.price}. The current price is $${lastPrices[alert.symbol]}.` };
+    emailTransporter.sendMail(mailOptions, (error, info) => {
+        if (error) { return console.error('Error sending email:', error); }
+        console.log('Email sent:', info.response);
+    });
+};
+
+const checkPriceAlerts = () => {
+    priceAlerts.forEach((alert) => {
+        if (!alert.triggered && lastPrices[alert.symbol] && parseFloat(lastPrices[alert.symbol]) >= parseFloat(alert.price)) {
+            sendAlertEmail(alert);
+            alert.triggered = true;
+        }
+    });
+    priceAlerts = priceAlerts.filter(alert => !alert.triggered);
+};
+
 const fetchPrices = async () => {
-    console.log('Fetching latest prices...');
     const pricePromises = trackedSymbols.map(async (symbol) => {
         const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`;
         try {
@@ -31,6 +55,7 @@ const fetchPrices = async () => {
     const results = await Promise.all(pricePromises);
     results.forEach(res => { if (res) lastPrices[res.symbol] = res.price; });
     io.emit('price_update', lastPrices);
+    checkPriceAlerts();
 };
 
 // --- Socket.IO Event Handling ---
@@ -45,6 +70,10 @@ io.on('connection', (socket) => {
         } else {
             socket.emit('action_feedback', `The symbol ${symbol} is already being tracked.`);
         }
+    });
+    socket.on('set_alert', (data) => {
+        priceAlerts.push({ symbol: data.symbol.toUpperCase(), price: data.price, email: data.email, triggered: false });
+        socket.emit('alert_confirmation', `Alert set for ${data.symbol} at $${data.price}.`);
     });
     socket.on('disconnect', () => { });
 });

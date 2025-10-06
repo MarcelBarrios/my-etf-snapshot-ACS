@@ -5,6 +5,10 @@ const socket = io();
 const tickerGrid = document.getElementById('ticker-grid');
 const stockInput = document.getElementById('stock-input');
 const addStockBtn = document.getElementById('add-stock-btn');
+const alertSymbolInput = document.getElementById('alert-symbol-input');
+const alertPriceInput = document.getElementById('alert-price-input');
+const alertEmailInput = document.getElementById('alert-email-input');
+const setAlertBtn = document.getElementById('set-alert-btn');
 
 // --- Functions ---
 // This function clears and rebuilds the stock display grid
@@ -55,6 +59,11 @@ socket.on('symbols_update', (symbols) => {
     updateGrid(symbols, currentPrices);
 });
 
+// Listen for a confirmation that our alert was set
+socket.on('alert_confirmation', (message) => {
+    alert(message);
+});
+
 // Listen for feedback, like trying to add a duplicate stock
 socket.on('action_feedback', (message) => {
     alert(message);
@@ -68,5 +77,22 @@ addStockBtn.addEventListener('click', () => {
     if (newSymbol) {
         socket.emit('add_stock', newSymbol);
         stockInput.value = '';
+    }
+});
+
+// Send the price alert data to the server
+setAlertBtn.addEventListener('click', () => {
+    const symbol = alertSymbolInput.value.trim();
+    const price = alertPriceInput.value.trim();
+    const email = alertEmailInput.value.trim();
+
+    if (symbol && price && email) {
+        socket.emit('set_alert', { symbol, price, email });
+        // Clear the form
+        alertSymbolInput.value = '';
+        alertPriceInput.value = '';
+        alertEmailInput.value = '';
+    } else {
+        alert('Please fill out all fields for the price alert.');
     }
 });
