@@ -9,6 +9,8 @@ const alertSymbolInput = document.getElementById('alert-symbol-input');
 const alertPriceInput = document.getElementById('alert-price-input');
 const alertEmailInput = document.getElementById('alert-email-input');
 const setAlertBtn = document.getElementById('set-alert-btn');
+const notificationContainer = document.getElementById('notification-container');
+
 
 // --- Functions ---
 // This function clears and rebuilds the stock display grid
@@ -24,6 +26,30 @@ const updateGrid = (symbols, prices) => {
         `;
         tickerGrid.appendChild(stockCard);
     });
+};
+
+const showNotification = (message) => {
+    // Create a new div for the notification
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+
+    // Add it to the container
+    notificationContainer.appendChild(notification);
+
+    // Animate it into view
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 100); // Small delay to allow CSS to apply
+
+    // Set a timer to remove the notification after 4 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        // Wait for the fade-out animation to finish before removing from DOM
+        notification.addEventListener('transitionend', () => {
+            notification.remove();
+        });
+    }, 4000);
 };
 
 // --- Socket.IO Event Listeners ---
@@ -67,6 +93,14 @@ socket.on('alert_confirmation', (message) => {
 // Listen for feedback, like trying to add a duplicate stock
 socket.on('action_feedback', (message) => {
     alert(message);
+});
+
+socket.on('user_connected', () => {
+    showNotification('A new user connected!');
+});
+
+socket.on('user_disconnected', () => {
+    showNotification('A user disconnected.');
 });
 
 // --- Socket.IO Event Emitters ---

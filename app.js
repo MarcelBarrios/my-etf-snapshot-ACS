@@ -98,6 +98,9 @@ const fetchPrices = async () => {
 
 // --- Socket.IO Event Handling ---
 io.on('connection', (socket) => {
+    console.log('A user connected');
+    socket.broadcast.emit('user_connected');
+
     socket.emit('initial_data', { symbols: trackedSymbols, prices: lastPrices });
     socket.on('add_stock', (newSymbol) => {
         const symbol = newSymbol.toUpperCase();
@@ -113,7 +116,10 @@ io.on('connection', (socket) => {
         priceAlerts.push({ symbol: data.symbol.toUpperCase(), price: data.price, email: data.email, triggered: false });
         socket.emit('alert_confirmation', `Alert set for ${data.symbol} at $${data.price}.`);
     });
-    socket.on('disconnect', () => { });
+    socket.on('disconnect', () => {
+        console.log('User disconnected');
+        socket.broadcast.emit('user_disconnected');
+    });
 });
 
 setInterval(fetchPrices, 60000);
