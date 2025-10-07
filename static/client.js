@@ -1,4 +1,3 @@
-// static/client.js
 const socket = io();
 
 // --- DOM Elements ---

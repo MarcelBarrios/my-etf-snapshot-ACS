@@ -1,4 +1,3 @@
-// app.js - Commit 5 (Final)
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
